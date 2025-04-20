@@ -1,0 +1,160 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Тест по предметам</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      margin: 20px;
+    }
+    .subject, .variant, .question {
+      padding: 15px;
+      margin: 10px auto;
+      width: 80%;
+      background-color: #f0f0f0;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .hidden { display: none; }
+    .answer-input {
+      width: 100px;
+    }
+    table { margin: 0 auto; }
+  </style>
+</head>
+<body>
+  <h1>Выбери предмет</h1>
+  <div id="subjectScreen"></div>
+  <div id="variantScreen" class="hidden"></div>
+  <div id="quizScreen" class="hidden"></div>
+  <div id="resultScreen" class="hidden"></div>
+
+  <script>
+    const subjects = ["Информатика", "География", "Биология", "История", "Основы права"];
+    const subjectScreen = document.getElementById("subjectScreen");
+    const variantScreen = document.getElementById("variantScreen");
+    const quizScreen = document.getElementById("quizScreen");
+    const resultScreen = document.getElementById("resultScreen");
+
+    let currentSubject = "";
+    let currentVariant = "";
+    let currentQuestions = [];
+    let userAnswers = [];
+    let currentQuestionIndex = 0;
+
+    subjects.forEach(subj => {
+      const div = document.createElement("div");
+      div.className = "subject";
+      div.innerText = subj;
+      div.onclick = () => showVariants(subj);
+      subjectScreen.appendChild(div);
+    });
+
+    function showVariants(subject) {
+      currentSubject = subject;
+      subjectScreen.classList.add("hidden");
+      variantScreen.classList.remove("hidden");
+      variantScreen.innerHTML = `<h2>${subject}: Выбери вариант</h2>`;
+
+      for (let i = 1; i <= 8; i++) {
+        const div = document.createElement("div");
+        div.className = "variant";
+        div.innerText = `Вариант ${i}`;
+        div.onclick = () => loadTest(subject, i);
+        variantScreen.appendChild(div);
+      }
+    }
+
+    async function loadTest(subject, variantNumber) {
+      currentVariant = variantNumber;
+      variantScreen.classList.add("hidden");
+      quizScreen.classList.remove("hidden");
+      quizScreen.innerHTML = "Загрузка...";
+
+      try {
+        // Загружаем только если это Информатика Вариант 1
+        if (subject == "Информатика" && variantNumber == 1) {
+          const res = await fetch("quiz_informatika_variant1.json");
+          currentQuestions = await res.json();
+        } else {
+          // Заглушка для других случаев
+          currentQuestions = [
+            { question: "Заглушка: 2 + 2 = ?", correct: "4" }
+          ];
+        }
+
+        userAnswers = [];
+        currentQuestionIndex = 0;
+        showNextQuestion();
+      } catch (error) {
+        quizScreen.innerHTML = "Ошибка загрузки теста.";
+        console.error(error);
+      }
+    }
+
+    function showNextQuestion() {
+      quizScreen.innerHTML = "";
+
+      const q = currentQuestions[currentQuestionIndex];
+      const div = document.createElement("div");
+      div.className = "question";
+      div.innerHTML = `
+        <h2>${currentSubject} — Вариант ${currentVariant}</h2>
+        <p>${currentQuestionIndex + 1}) ${q.question}</p>
+        <input class="answer-input" id="answerInput" type="text" />
+        <br><br>
+        <button onclick="submitAnswer()">Ответить</button>
+      `;
+      quizScreen.appendChild(div);
+    }
+
+    function submitAnswer() {
+      const input = document.getElementById("answerInput");
+      const answer = input.value.trim();
+      if (answer === "") return;
+
+      userAnswers.push(answer);
+      currentQuestionIndex++;
+
+      if (currentQuestionIndex < currentQuestions.length) {
+        showNextQuestion();
+      } else {
+        showResults();
+      }
+    }
+
+    function showResults() {
+      quizScreen.classList.add("hidden");
+      resultScreen.classList.remove("hidden");
+      resultScreen.innerHTML = `<h2>Результат</h2>`;
+
+      let score = 0;
+      const table = document.createElement("table");
+      table.innerHTML = `<tr><th>Вопрос</th><th>Правильный</th><th>Твой ответ</th></tr>`;
+
+      currentQuestions.forEach((q, i) => {
+        const user = userAnswers[i];
+        const isCorrect = user.toLowerCase() === q.correct.toLowerCase();
+        if (isCorrect) score++;
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${q.question}</td>
+          <td>${q.correct}</td>
+          <td style="color: ${isCorrect ? 'green' : 'red'}">${user}</td>
+        `;
+        table.appendChild(row);
+      });
+
+      resultScreen.appendChild(table);
+      resultScreen.innerHTML += `<p><strong>Ты набрал: ${score} из ${currentQuestions.length}</strong></p>`;
+      const btn = document.createElement("button");
+      btn.innerText = "В меню";
+      btn.onclick = () => location.reload();
+      resultScreen.appendChild(btn);
+    }
+  </script>
+</body>
+</html>
