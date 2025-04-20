@@ -137,12 +137,14 @@
 
       currentQuestions.forEach((q, i) => {
         const user = userAnswers[i];
-        const isCorrect = user.toLowerCase() === q.correct.toLowerCase();
+        const isCorrect = user.toLowerCase() === q.answer.toLowerCase();
+
+        //const isCorrect = user.toLowerCase() === q.correct.toLowerCase();
         if (isCorrect) score++;
         const row = document.createElement("tr");
         row.innerHTML = `
           <td>${q.question}</td>
-          <td>${q.correct}</td>
+          <td>${q.answer}</td>
           <td style="color: ${isCorrect ? 'green' : 'red'}">${user}</td>
         `;
         table.appendChild(row);
