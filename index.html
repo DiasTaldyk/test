@@ -116,7 +116,7 @@
 
     function showNextQuestion() {
       quizScreen.innerHTML = "";
-
+    
       const q = currentQuestions[currentQuestionIndex];
       const div = document.createElement("div");
       div.className = "question";
@@ -124,21 +124,23 @@
         <h2>${currentSubject} — Вариант ${currentVariant}</h2>
         <p>${currentQuestionIndex + 1}) ${q.question}</p>
       `;
-
+    
       q.options.forEach((option, index) => {
         const btn = document.createElement("button");
         btn.innerText = option;
-        btn.onclick = () => submitAnswer(index);
+        btn.onclick = () => submitAnswer(index); // передаём индекс!
+        btn.style.display = "block";
+        btn.style.margin = "10px 0";
         div.appendChild(btn);
       });
-
+    
       quizScreen.appendChild(div);
     }
-
+    
     function submitAnswer(selectedIndex) {
       userAnswers.push(selectedIndex);
       currentQuestionIndex++;
-
+    
       if (currentQuestionIndex < currentQuestions.length) {
         showNextQuestion();
       } else {
@@ -146,30 +148,33 @@
       }
     }
 
+
+    
     function showResults() {
       quizScreen.classList.add("hidden");
       resultScreen.classList.remove("hidden");
       resultScreen.innerHTML = `<h2>Результат</h2>`;
-
+    
       let score = 0;
       const table = document.createElement("table");
-      table.innerHTML = `<tr><th>Вопрос</th><th>Правильный</th><th>Твой ответ</th></tr>`;
-
+      table.innerHTML = `<tr><th>Вопрос</th><th>Правильный</th><th>Ты выбрал</th></tr>`;
+    
       currentQuestions.forEach((q, i) => {
-        const userIdx = userAnswers[i];
-        const correctIdx = q.answer;
-        const isCorrect = userIdx === correctIdx;
+        const userIndex = userAnswers[i];
+        const correctIndex = q.answer;
+    
+        const isCorrect = userIndex === correctIndex;
         if (isCorrect) score++;
-
+    
         const row = document.createElement("tr");
         row.innerHTML = `
           <td>${q.question}</td>
-          <td>${q.options[correctIdx]}</td>
-          <td style="color: ${isCorrect ? 'green' : 'red'}">${q.options[userIdx]}</td>
+          <td>${q.options[correctIndex]}</td>
+          <td style="color: ${isCorrect ? 'green' : 'red'}">${q.options[userIndex]}</td>
         `;
         table.appendChild(row);
       });
-
+    
       resultScreen.appendChild(table);
       resultScreen.innerHTML += `<p><strong>Ты набрал: ${score} из ${currentQuestions.length}</strong></p>`;
       const btn = document.createElement("button");
@@ -177,6 +182,7 @@
       btn.onclick = () => location.reload();
       resultScreen.appendChild(btn);
     }
+
   </script>
 </body>
 </html>
