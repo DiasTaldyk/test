@@ -93,9 +93,9 @@
       try {
         if (subject == "Информатика" && variantNumber == 1) {
           const res = await fetch('quiz_informatika_variant1.json');
-          const data = await res.json();
-          currentQuestions = data["Информатика"]["Вариант 1"];
-        } else {
+          currentQuestions = await res.json();
+        }
+        else {
           currentQuestions = [
             {
               question: "Заглушка: Сколько будет 2 + 2?",
