@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
@@ -19,10 +19,26 @@
       cursor: pointer;
     }
     .hidden { display: none; }
-    .answer-input {
-      width: 100px;
+    button {
+      padding: 10px 20px;
+      margin: 5px 0;
+      border: none;
+      border-radius: 5px;
+      background-color: #ddd;
+      cursor: pointer;
+      width: 60%;
     }
-    table { margin: 0 auto; }
+    button:hover {
+      background-color: #ccc;
+    }
+    table {
+      margin: 0 auto;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #999;
+      padding: 8px 12px;
+    }
   </style>
 </head>
 <body>
@@ -75,14 +91,17 @@
       quizScreen.innerHTML = "Загрузка...";
 
       try {
-        // Загружаем только если это Информатика Вариант 1
         if (subject == "Информатика" && variantNumber == 1) {
           const res = await fetch('quiz_informatika_variant1.json');
-          currentQuestions = await res.json();
+          const data = await res.json();
+          currentQuestions = data["Информатика"]["Вариант 1"];
         } else {
-          // Заглушка для других случаев
           currentQuestions = [
-            { question: "Заглушка: 2 + 2 = ?", correct: "4" }
+            {
+              question: "Заглушка: Сколько будет 2 + 2?",
+              options: ["3", "4", "5", "6"],
+              answer: 1
+            }
           ];
         }
 
@@ -104,19 +123,20 @@
       div.innerHTML = `
         <h2>${currentSubject} — Вариант ${currentVariant}</h2>
         <p>${currentQuestionIndex + 1}) ${q.question}</p>
-        <input class="answer-input" id="answerInput" type="text" />
-        <br><br>
-        <button onclick="submitAnswer()">Ответить</button>
       `;
+
+      q.options.forEach((option, index) => {
+        const btn = document.createElement("button");
+        btn.innerText = option;
+        btn.onclick = () => submitAnswer(index);
+        div.appendChild(btn);
+      });
+
       quizScreen.appendChild(div);
     }
 
-    function submitAnswer() {
-      const input = document.getElementById("answerInput");
-      const answer = input.value.trim();
-      if (answer === "") return;
-
-      userAnswers.push(answer);
+    function submitAnswer(selectedIndex) {
+      userAnswers.push(selectedIndex);
       currentQuestionIndex++;
 
       if (currentQuestionIndex < currentQuestions.length) {
@@ -136,16 +156,16 @@
       table.innerHTML = `<tr><th>Вопрос</th><th>Правильный</th><th>Твой ответ</th></tr>`;
 
       currentQuestions.forEach((q, i) => {
-        const user = userAnswers[i];
-        const isCorrect = user.toLowerCase() === q.answer.toLowerCase();
-
-        //const isCorrect = user.toLowerCase() === q.correct.toLowerCase();
+        const userIdx = userAnswers[i];
+        const correctIdx = q.answer;
+        const isCorrect = userIdx === correctIdx;
         if (isCorrect) score++;
+
         const row = document.createElement("tr");
         row.innerHTML = `
           <td>${q.question}</td>
-          <td>${q.answer}</td>
-          <td style="color: ${isCorrect ? 'green' : 'red'}">${user}</td>
+          <td>${q.options[correctIdx]}</td>
+          <td style="color: ${isCorrect ? 'green' : 'red'}">${q.options[userIdx]}</td>
         `;
         table.appendChild(row);
       });
