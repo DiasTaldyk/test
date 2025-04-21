@@ -7,8 +7,11 @@
       "Цикл",
       "Условие"
     ],
-    "answer": "Место для хранения данных"
+    "answer": 1
   },
+ 
+
+  
   {
     "question": "Какой тип данных предназначен для хранения текста?",
     "options": [
@@ -17,7 +20,7 @@
       "str",
       "bool"
     ],
-    "answer": "str"
+    "answer": 2
   },
   {
     "question": "Что делает функция len() в Python?",
@@ -27,7 +30,7 @@
       "Возвращает длину",
       "Создает цикл"
     ],
-    "answer": "Возвращает длину"
+    "answer": 0
   },
   {
     "question": "Какой оператор используется для сравнения равенства?",
@@ -37,7 +40,7 @@
       "!=",
       ">="
     ],
-    "answer": "=="
+    "answer": 1
   },
   {
     "question": "Что означает SQL?",
@@ -47,6 +50,6 @@
       "Structured Query Language",
       "System Query Logic"
     ],
-    "answer": "Structured Query Language"
+    "answer": 2
   }
 ]
