@@ -1,0 +1,331 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>PDF редактор с ластиком</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f5f5f5; }
+    canvas { border: 1px solid #ccc; cursor: crosshair; }
+    #controls { margin-bottom: 10px; }
+    #controls > * { margin-right: 10px; }
+    #eraserPreview {
+      position: absolute;
+      pointer-events: none;
+      border: 1px dashed #000;
+      opacity: 0.4;
+    }
+  </style>
+</head>
+<body>
+  <h2>PDF редактор с "ластиком"</h2>
+  
+<button id="prevPage">⬅️ Назад</button>
+	<button id="nextPage">➡️ Вперёд</button>
+	<span id="pageInfo"></span>
+	
+  <div id="controls">
+    <input type="file" id="fileInput" accept="application/pdf">
+    <button id="eraserBtn">🧽 Ластик</button>
+	<button id="penBtn">✏️ Карандаш</button>
+<button id="textBtn">🔤 Текст</button>
+    <label>
+      Размер:
+      <input type="range" id="eraserSize" min="10" max="100" value="30">
+    </label>
+    <label>
+      Форма:
+      <select id="eraserShape">
+        <option value="square">Квадрат</option>
+        <option value="circle">Круг</option>
+      </select>
+    </label>
+    <button id="saveBtn">💾 Сохранить</button>
+  </div>
+	
+  <canvas id="pdfCanvas"></canvas>
+  
+  
+  
+  <div id="eraserPreview"></div>
+  
+  
+  
+	
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const pdfCanvas = document.getElementById('pdfCanvas');
+    const ctx = pdfCanvas.getContext('2d');
+    const saveBtn = document.getElementById('saveBtn');
+    const eraserBtn = document.getElementById('eraserBtn');
+    const eraserSize = document.getElementById('eraserSize');
+    const eraserShape = document.getElementById('eraserShape');
+    const eraserPreview = document.getElementById('eraserPreview');
+
+	let editedPages = []; // Храним изображения всех страниц
+
+	let currentPageNumber = 1;
+	let totalPages = 0;
+    
+	let currentPage = null;
+    let pdfDoc = null;
+    let eraserMode = false;
+    let eraserColor = '#ffffff'; // Цвет "ластика"
+	
+	
+	function getPixelColor(x, y) {
+	  const pixel = ctx.getImageData(x, y, 1, 1).data;
+	  return `rgba(${pixel[0]}, ${pixel[1]}, ${pixel[2]}, ${pixel[3] / 255})`;
+	}
+
+	
+	
+	document.getElementById('prevPage').addEventListener('click', () => {
+	  if (currentPageNumber > 1) {
+		renderPage(currentPageNumber - 1);
+	  }
+	});
+
+	document.getElementById('nextPage').addEventListener('click', () => {
+	  if (currentPageNumber < totalPages) {
+		renderPage(currentPageNumber + 1);
+	  }
+	});
+
+
+	
+	async function renderPage(pageNum) {
+	  // Сохраняем текущее изображение, если уже была страница
+	  if (currentPage && editedPages.length >= currentPageNumber) {
+		editedPages[currentPageNumber - 1] = pdfCanvas.toDataURL();
+	  }
+
+	  currentPageNumber = pageNum;
+	  currentPage = await pdfDoc.getPage(pageNum);
+	  const viewport = currentPage.getViewport({ scale: 1.5 });
+
+	  pdfCanvas.width = viewport.width;
+	  pdfCanvas.height = viewport.height;
+
+	  await currentPage.render({ canvasContext: ctx, viewport }).promise;
+
+	  // Если уже есть редактированная версия — отобразить её
+	  if (editedPages[pageNum - 1]) {
+		const img = new Image();
+		img.src = editedPages[pageNum - 1];
+		img.onload = () => ctx.drawImage(img, 0, 0);
+	  }
+
+	  document.getElementById('pageInfo').textContent = `Страница ${pageNum} из ${totalPages}`;
+	}
+
+
+
+    fileInput.addEventListener('change', async () => {
+	  const file = fileInput.files[0];
+	  if (!file || file.type !== 'application/pdf') return;
+
+	  const arrayBuffer = await file.arrayBuffer();
+	  pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+	  totalPages = pdfDoc.numPages;
+	  editedPages = new Array(totalPages); // Пустой массив для редактированных страниц
+	  await renderPage(1);
+	});
+
+
+    eraserBtn.addEventListener('click', () => {
+      eraserMode = !eraserMode;
+      eraserBtn.style.background = eraserMode ? '#ddd' : '';
+      eraserPreview.style.display = eraserMode ? 'block' : 'none';
+    });
+
+    pdfCanvas.addEventListener('mousemove', e => {
+      if (!eraserMode) return;
+      const rect = pdfCanvas.getBoundingClientRect();
+      const size = parseInt(eraserSize.value);
+      const shape = eraserShape.value;
+      const x = e.clientX - rect.left - size / 2;
+      const y = e.clientY - rect.top - size / 2;
+
+      eraserPreview.style.width = `${size}px`;
+      eraserPreview.style.height = `${size}px`;
+      eraserPreview.style.left = `${rect.left + x}px`;
+      eraserPreview.style.top = `${rect.top + y}px`;
+      eraserPreview.style.borderRadius = shape === 'circle' ? '50%' : '0';
+    });
+
+    pdfCanvas.addEventListener('mousedown', e => {
+	  if (!eraserMode) return;
+
+	  const rect = pdfCanvas.getBoundingClientRect();
+	  const x = e.clientX - rect.left;
+	  const y = e.clientY - rect.top;
+	  const size = parseInt(eraserSize.value);
+	  const shape = eraserShape.value;
+
+	  // Получаем цвет пикселя под курсором
+	  const bgColor = getPixelColor(x, y);
+
+	  ctx.save();
+	  ctx.fillStyle = bgColor;
+	  ctx.globalAlpha = 1;
+	  ctx.beginPath();
+
+	  if (shape === 'circle') {
+		ctx.arc(x, y, size / 2, 0, 2 * Math.PI);
+		ctx.fill();
+	  } else {
+		ctx.fillRect(x - size / 2, y - size / 2, size, size);
+	  }
+
+	  ctx.restore();
+	});
+
+
+    saveBtn.addEventListener('click', async () => {
+	  // Сохраняем текущую страницу перед финальной сборкой
+	  editedPages[currentPageNumber - 1] = pdfCanvas.toDataURL();
+
+	  const pdf = await PDFLib.PDFDocument.create();
+
+	  for (let i = 0; i < editedPages.length; i++) {
+		const imgDataUrl = editedPages[i];
+		if (!imgDataUrl) continue; // если страница не была отрисована
+
+		const img = await pdf.embedPng(imgDataUrl);
+		const page = pdf.addPage([pdfCanvas.width, pdfCanvas.height]);
+		page.drawImage(img, { x: 0, y: 0, width: pdfCanvas.width, height: pdfCanvas.height });
+	  }
+
+	  const bytes = await pdf.save();
+	  const blob = new Blob([bytes], { type: 'application/pdf' });
+	  const url = URL.createObjectURL(blob);
+	  const a = document.createElement('a');
+	  a.href = url;
+	  a.download = 'отредактированный.pdf';
+	  a.click();
+	  URL.revokeObjectURL(url);
+	});
+	
+	
+	let penMode = false;
+	let textMode = false;
+	let drawing = false;
+	let texts = [];
+	let draggingText = null;
+	let offsetX = 0, offsetY = 0;
+
+
+	const penBtn = document.getElementById('penBtn');
+	const textBtn = document.getElementById('textBtn');
+
+	penBtn.addEventListener('click', () => {
+	  penMode = !penMode;
+	  textMode = false;
+	  eraserMode = false;
+	  penBtn.style.background = penMode ? '#ddd' : '';
+	  eraserBtn.style.background = '';
+	  textBtn.style.background = '';
+	  eraserPreview.style.display = 'none';
+	});
+
+	textBtn.addEventListener('click', () => {
+	  textMode = !textMode;
+	  penMode = false;
+	  eraserMode = false;
+	  textBtn.style.background = textMode ? '#ddd' : '';
+	  eraserBtn.style.background = '';
+	  penBtn.style.background = '';
+	  eraserPreview.style.display = 'none';
+	});
+
+	pdfCanvas.addEventListener('mousedown', (e) => {
+	  if (penMode) {
+		drawing = true;
+		ctx.beginPath();
+		const rect = pdfCanvas.getBoundingClientRect();
+		ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+	  } else if (textMode) {
+		  const input = prompt("Введите текст:");
+		  if (input) {
+			const rect = pdfCanvas.getBoundingClientRect();
+			const x = e.clientX - rect.left;
+			const y = e.clientY - rect.top;
+			texts.push({ text: input, x, y });
+			redrawCanvas();
+		  }
+		}
+
+	});
+
+	pdfCanvas.addEventListener('mousemove', (e) => {
+	  if (penMode && drawing) {
+		const rect = pdfCanvas.getBoundingClientRect();
+		ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+		ctx.strokeStyle = "#000";
+		ctx.lineWidth = 2;
+		ctx.stroke();
+	  }
+	});
+
+	pdfCanvas.addEventListener('mouseup', () => {
+	  if (penMode) drawing = false;
+	});
+	
+	
+	function redrawCanvas() {
+	  // Сначала рисуем фоновое изображение
+	  const bg = new Image();
+	  bg.src = editedPages[currentPageNumber - 1];
+	  bg.onload = () => {
+		ctx.clearRect(0, 0, pdfCanvas.width, pdfCanvas.height);
+		ctx.drawImage(bg, 0, 0);
+		for (const t of texts) {
+		  ctx.font = "16px sans-serif";
+		  ctx.fillStyle = "black";
+		  ctx.fillText(t.text, t.x, t.y);
+		}
+	  };
+	}
+
+	
+	pdfCanvas.addEventListener('mousedown', (e) => {
+	  if (!textMode) return;
+	  const rect = pdfCanvas.getBoundingClientRect();
+	  const x = e.clientX - rect.left;
+	  const y = e.clientY - rect.top;
+
+	  for (let i = texts.length - 1; i >= 0; i--) {
+		const t = texts[i];
+		ctx.font = "16px sans-serif";
+		const width = ctx.measureText(t.text).width;
+		const height = 16;
+
+		if (x >= t.x && x <= t.x + width && y <= t.y && y >= t.y - height) {
+		  draggingText = t;
+		  offsetX = x - t.x;
+		  offsetY = y - t.y;
+		  return;
+		}
+	  }
+	});
+
+	pdfCanvas.addEventListener('mousemove', (e) => {
+	  if (!draggingText) return;
+	  const rect = pdfCanvas.getBoundingClientRect();
+	  draggingText.x = e.clientX - rect.left - offsetX;
+	  draggingText.y = e.clientY - rect.top - offsetY;
+	  redrawCanvas();
+	});
+
+	pdfCanvas.addEventListener('mouseup', () => {
+	  draggingText = null;
+	});
+
+
+  </script>
+</body>
+</html>
